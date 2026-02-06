@@ -131,6 +131,8 @@ fun FoodieLogsApp() {
                                 longReview = review,
                                 rating = rating,
                                 price = price,
+                                category = sampleCategories.first(),
+                                features = emptyList(),
                                 menuItems = emptyList(),
                                 isFavorite = false
                             )
@@ -268,10 +270,26 @@ fun HomeScreen(
 ) {
     var query by remember { mutableStateOf("") }
     var filterExpanded by remember { mutableStateOf(false) }
+    var selectedCategory by remember { mutableStateOf<String?>(null) }
+    var selectedPrice by remember { mutableStateOf<String?>(null) }
+    var selectedFeature by remember { mutableStateOf<String?>(null) }
+    var selectedLocation by remember { mutableStateOf<String?>(null) }
 
     val sortedRestaurants = restaurants.sortedWith(
         compareByDescending<Restaurant> { it.isFavorite }.thenByDescending { it.rating }
     )
+    val categories = remember(restaurants) { restaurants.map { it.category }.distinct().sorted() }
+    val prices = remember(restaurants) { restaurants.map { it.price }.distinct().sorted() }
+    val features = remember(restaurants) { restaurants.flatMap { it.features }.distinct().sorted() }
+    val locations = remember(restaurants) { restaurants.map { it.location }.distinct().sorted() }
+
+    val filteredRestaurants = sortedRestaurants.filter { restaurant ->
+        restaurant.name.contains(query, ignoreCase = true) &&
+            (selectedCategory == null || restaurant.category == selectedCategory) &&
+            (selectedPrice == null || restaurant.price == selectedPrice) &&
+            (selectedFeature == null || restaurant.features.contains(selectedFeature)) &&
+            (selectedLocation == null || restaurant.location == selectedLocation)
+    }
 
     Surface(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -314,10 +332,31 @@ fun HomeScreen(
                 )
             }
             if (filterExpanded) {
-                FilterRow(
-                    items = listOf("Category", "Price", "Features", "Location"),
-                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
-                )
+                Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) {
+                    FilterRow(
+                        items = categories,
+                        selectedItem = selectedCategory,
+                        onSelect = { selectedCategory = it },
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                    FilterRow(
+                        items = prices,
+                        selectedItem = selectedPrice,
+                        onSelect = { selectedPrice = it },
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                    FilterRow(
+                        items = features,
+                        selectedItem = selectedFeature,
+                        onSelect = { selectedFeature = it },
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                    FilterRow(
+                        items = locations,
+                        selectedItem = selectedLocation,
+                        onSelect = { selectedLocation = it }
+                    )
+                }
             }
 
             LazyColumn(
@@ -325,7 +364,7 @@ fun HomeScreen(
                     .weight(1f)
                     .padding(horizontal = 16.dp)
             ) {
-                items(sortedRestaurants.filter { it.name.contains(query, ignoreCase = true) }) { restaurant ->
+                items(filteredRestaurants) { restaurant ->
                     RestaurantCard(restaurant = restaurant, onOpen = { onOpenRestaurant(restaurant) }, onFavorite = {
                         onFavoriteToggle(restaurant)
                     })
@@ -346,18 +385,29 @@ fun HomeScreen(
 }
 
 @Composable
-fun FilterRow(items: List<String>, modifier: Modifier = Modifier) {
+fun FilterRow(
+    items: List<String>,
+    selectedItem: String?,
+    onSelect: (String?) -> Unit,
+    modifier: Modifier = Modifier
+) {
     Row(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceEvenly
     ) {
         items.forEach { label ->
+            val isSelected = label == selectedItem
             Box(
                 modifier = Modifier
                     .border(1.dp, BrandGreen, RoundedCornerShape(20.dp))
+                    .background(
+                        color = if (isSelected) BrandGreen else Color.Transparent,
+                        shape = RoundedCornerShape(20.dp)
+                    )
+                    .clickable { onSelect(if (isSelected) null else label) }
                     .padding(horizontal = 12.dp, vertical = 6.dp)
             ) {
-                Text(label, fontSize = 12.sp, color = BrandGreen)
+                Text(label, fontSize = 12.sp, color = if (isSelected) Color.White else BrandGreen)
             }
         }
     }
@@ -945,6 +995,8 @@ private data class Restaurant(
     val longReview: String,
     val rating: Double,
     val price: String,
+    val category: String,
+    val features: List<String>,
     val menuItems: List<MenuItem>,
     val isFavorite: Boolean
 )
@@ -969,6 +1021,8 @@ private val sampleRestaurants = listOf(
         longReview = "Restaurant description from user Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vivamus ultricies elit eget imperdiet consectetur. Nam blandit mi eget orci tempus vehicula.\n\nLorem ipsum dolor sit amet, consectetur adipiscing elit. Suspendisse et vestibulum purus. Fusce euismod metus tortor, in pellentesque quam consequat in.",
         rating = 4.5,
         price = "$$",
+        category = sampleCategories[0],
+        features = listOf(sampleFeatures[0], sampleFeatures[2], sampleFeatures[4]),
         menuItems = listOf(
             MenuItem(1, "Whopper", "Restaurant review from user limited to two lines of their review...", 4.5, true),
             MenuItem(2, "French Fries", "Restaurant review from user limited to two lines of their review...", 4.5, false),
@@ -984,6 +1038,8 @@ private val sampleRestaurants = listOf(
         longReview = "Restaurant description from user Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
         rating = 4.5,
         price = "$",
+        category = sampleCategories[1],
+        features = listOf(sampleFeatures[1], sampleFeatures[5]),
         menuItems = listOf(
             MenuItem(4, "Big Mac", "Restaurant review from user limited to two lines of their review...", 4.0, false)
         ),
@@ -997,6 +1053,8 @@ private val sampleRestaurants = listOf(
         longReview = "Restaurant description from user Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
         rating = 4.0,
         price = "$$",
+        category = sampleCategories[2],
+        features = listOf(sampleFeatures[1], sampleFeatures[2], sampleFeatures[4]),
         menuItems = listOf(
             MenuItem(5, "Crunchwrap", "Restaurant review from user limited to two lines of their review...", 4.0, false)
         ),
