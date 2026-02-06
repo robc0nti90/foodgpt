@@ -3,6 +3,7 @@ package com.foodielogs
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -20,7 +21,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -31,21 +34,23 @@ import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.StarHalf
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Divider
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -56,9 +61,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -232,66 +239,61 @@ fun HomeScreen(
     )
 
     Surface(modifier = Modifier.fillMaxSize()) {
-        Box(modifier = Modifier.fillMaxSize()) {
-            Column(modifier = Modifier.fillMaxSize()) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text("FOODIE", fontWeight = FontWeight.Bold, fontSize = 22.sp)
-                        Text("LOGS", fontSize = 18.sp, color = TextGray)
-                    }
-                    IconButton(onClick = onOpenAccount) {
-                        Icon(Icons.Default.Person, contentDescription = "Account")
-                    }
+        Column(modifier = Modifier.fillMaxSize()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("FOODIE", fontWeight = FontWeight.Bold, fontSize = 22.sp)
+                    Text("LOGS", fontSize = 18.sp, color = TextGray)
                 }
+                IconButton(onClick = onOpenAccount) {
+                    Icon(Icons.Default.Person, contentDescription = "Account")
+                }
+            }
 
-                SearchBar(
-                    value = query,
-                    placeholder = "Search Your Restaurants",
-                    onValueChange = { query = it },
-                    modifier = Modifier.padding(horizontal = 20.dp)
+            SearchBar(
+                value = query,
+                placeholder = "Search Your Restaurants",
+                onValueChange = { query = it },
+                modifier = Modifier.padding(horizontal = 20.dp)
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { filterExpanded = !filterExpanded }
+                    .padding(horizontal = 20.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Text("FILTERS", color = BrandGreen, fontWeight = FontWeight.SemiBold)
+                Icon(
+                    if (filterExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                    contentDescription = "Toggle Filters",
+                    tint = BrandGreen
                 )
+            }
+            if (filterExpanded) {
+                FilterRow(
+                    items = listOf("Category", "Price", "Features", "Location"),
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
+                )
+            }
 
-                Spacer(modifier = Modifier.height(12.dp))
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { filterExpanded = !filterExpanded }
-                        .padding(horizontal = 20.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
-                ) {
-                    Text("FILTERS", color = BrandGreen, fontWeight = FontWeight.SemiBold)
-                    Icon(
-                        if (filterExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                        contentDescription = "Toggle Filters",
-                        tint = BrandGreen
-                    )
-                }
-                if (filterExpanded) {
-                    FilterRow(
-                        items = listOf("Category", "Price", "Features", "Location"),
-                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
-                    )
-                }
-
-                LazyColumn(
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(horizontal = 16.dp)
-                        .padding(bottom = 72.dp)
-                ) {
-                    items(sortedRestaurants.filter { it.name.contains(query, ignoreCase = true) }) { restaurant ->
-                        RestaurantCard(
-                            restaurant = restaurant,
-                            onOpen = { onOpenRestaurant(restaurant) },
-                            onFavorite = { onFavoriteToggle(restaurant) }
-                        )
-                    }
+            LazyColumn(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(horizontal = 16.dp)
+            ) {
+                items(sortedRestaurants.filter { it.name.contains(query, ignoreCase = true) }) { restaurant ->
+                    RestaurantCard(restaurant = restaurant, onOpen = { onOpenRestaurant(restaurant) }, onFavorite = {
+                        onFavoriteToggle(restaurant)
+                    })
                 }
             }
 
@@ -299,7 +301,6 @@ fun HomeScreen(
                 onClick = onAddRestaurant,
                 colors = ButtonDefaults.buttonColors(containerColor = BrandGreen),
                 modifier = Modifier
-                    .align(Alignment.BottomCenter)
                     .fillMaxWidth()
                     .height(56.dp)
             ) {
@@ -354,7 +355,7 @@ fun RestaurantCard(restaurant: Restaurant, onOpen: () -> Unit, onFavorite: () ->
                 Column(horizontalAlignment = Alignment.End) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.Star, contentDescription = "Rating", tint = BrandGold, modifier = Modifier.size(16.dp))
-                        Text("${restaurant.rating}/10", fontSize = 12.sp)
+                        Text("${restaurant.rating}", fontSize = 12.sp)
                     }
                     Text("${restaurant.menuItems.size} Items", fontSize = 11.sp, color = TextGray)
                 }
@@ -467,81 +468,73 @@ fun RestaurantMainScreen(
         compareByDescending<MenuItem> { it.isFavorite }.thenByDescending { it.rating }
     )
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            TopBar(
-                title = restaurant.name,
-                onBack = onBack,
-                trailing = {
-                    IconButton(onClick = onFavoriteRestaurant) {
-                        Icon(
-                            if (restaurant.isFavorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
-                            contentDescription = "Favorite restaurant",
-                            tint = if (restaurant.isFavorite) Color(0xFFB5161C) else TextGray
-                        )
-                    }
+    Column(modifier = Modifier.fillMaxSize()) {
+        TopBar(
+            title = restaurant.name,
+            onBack = onBack,
+            trailing = {
+                IconButton(onClick = onFavoriteRestaurant) {
+                    Icon(
+                        if (restaurant.isFavorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                        contentDescription = "Favorite restaurant",
+                        tint = if (restaurant.isFavorite) Color(0xFFB5161C) else TextGray
+                    )
                 }
+            }
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Center
+        ) {
+            ToggleChip(text = "MENU", selected = true)
+            Spacer(modifier = Modifier.width(12.dp))
+            ToggleChip(text = "ABOUT", selected = false, onClick = onOpenAbout)
+        }
+        SearchBar(
+            value = query,
+            placeholder = "Search Menu Items",
+            onValueChange = { query = it },
+            modifier = Modifier.padding(20.dp)
+        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { sortExpanded = !sortExpanded }
+                .padding(horizontal = 20.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Text("SORT BY FAVORITES", color = BrandGreen, fontWeight = FontWeight.SemiBold)
+            Icon(
+                if (sortExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                contentDescription = "Toggle sort",
+                tint = BrandGreen
             )
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Center
-            ) {
-                ToggleChip(text = "MENU", selected = true)
-                Spacer(modifier = Modifier.width(12.dp))
-                ToggleChip(text = "ABOUT", selected = false, onClick = onOpenAbout)
-            }
-            SearchBar(
-                value = query,
-                placeholder = "Search Menu Items",
-                onValueChange = { query = it },
-                modifier = Modifier.padding(20.dp)
-            )
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { sortExpanded = !sortExpanded }
-                    .padding(horizontal = 20.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
-            ) {
-                Text("SORT BY FAVORITES", color = BrandGreen, fontWeight = FontWeight.SemiBold)
-                Icon(
-                    if (sortExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                    contentDescription = "Toggle sort",
-                    tint = BrandGreen
-                )
-            }
-            if (sortExpanded) {
-                Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) {
-                    listOf(
-                        "Favorites (default)",
-                        "Rating high to low",
-                        "Rating low to high",
-                        "Alphabetical A-Z",
-                        "Alphabetical Z-A"
-                    ).forEach { option ->
-                        Text(option, fontSize = 12.sp, color = TextGray, modifier = Modifier.padding(vertical = 2.dp))
-                    }
+        }
+        if (sortExpanded) {
+            Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) {
+                listOf(
+                    "Favorites (default)",
+                    "Rating high to low",
+                    "Rating low to high",
+                    "Alphabetical A-Z",
+                    "Alphabetical Z-A"
+                ).forEach { option ->
+                    Text(option, fontSize = 12.sp, color = TextGray, modifier = Modifier.padding(vertical = 2.dp))
                 }
             }
-            LazyColumn(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(horizontal = 16.dp)
-                    .padding(bottom = 72.dp)
-            ) {
-                items(sortedItems.filter { it.name.contains(query, ignoreCase = true) }) { item ->
-                    MenuItemCard(item = item, onOpen = { onOpenMenuItem(item) }, onFavorite = {
-                        onFavoriteMenuItem(item)
-                    })
-                }
+        }
+        LazyColumn(modifier = Modifier.weight(1f).padding(horizontal = 16.dp)) {
+            items(sortedItems.filter { it.name.contains(query, ignoreCase = true) }) { item ->
+                MenuItemCard(item = item, onOpen = { onOpenMenuItem(item) }, onFavorite = {
+                    onFavoriteMenuItem(item)
+                })
             }
         }
         Button(
             onClick = onAddMenuItem,
             colors = ButtonDefaults.buttonColors(containerColor = BrandGreen),
             modifier = Modifier
-                .align(Alignment.BottomCenter)
                 .fillMaxWidth()
                 .height(56.dp)
         ) {
@@ -578,7 +571,7 @@ fun RestaurantAboutScreen(restaurant: Restaurant, onBack: () -> Unit, onEdit: ()
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Default.Star, contentDescription = "Rating", tint = BrandGold, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(4.dp))
-                Text("${restaurant.rating}/10", fontWeight = FontWeight.SemiBold)
+                Text("${restaurant.rating}", fontWeight = FontWeight.SemiBold)
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(restaurant.location, color = TextGray)
             }
@@ -674,7 +667,7 @@ fun MenuItemAboutScreen(item: MenuItem, onBack: () -> Unit, onEdit: () -> Unit, 
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Default.Star, contentDescription = "Rating", tint = BrandGold)
                 Spacer(modifier = Modifier.width(6.dp))
-                Text("${item.rating}/10", fontWeight = FontWeight.SemiBold)
+                Text("${item.rating}", fontWeight = FontWeight.SemiBold)
             }
             Spacer(modifier = Modifier.height(12.dp))
             Text("REVIEW AND NOTES", fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
@@ -742,31 +735,19 @@ fun RatingPicker(label: String, rating: Double, onRatingChange: (Double) -> Unit
     Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) {
         Text(label, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
         Row(verticalAlignment = Alignment.CenterVertically) {
-            (1..10).forEach { index ->
-                val starValue = index.toDouble()
-                val icon = when {
-                    rating >= starValue -> Icons.Default.Star
-                    rating >= starValue - 0.5 -> Icons.Filled.StarHalf
-                    else -> Icons.Outlined.StarBorder
-                }
-                IconButton(onClick = { onRatingChange(starValue) }) {
+            for (i in 1..5) {
+                val isFilled = rating >= i * 2
+                IconButton(onClick = { onRatingChange(i * 2.0) }) {
                     Icon(
-                        icon,
-                        contentDescription = "Star $index",
-                        tint = BrandGold,
-                        modifier = Modifier.size(18.dp)
+                        if (isFilled) Icons.Default.Star else Icons.Outlined.StarBorder,
+                        contentDescription = "Star",
+                        tint = BrandGold
                     )
                 }
             }
+            Text("/10", fontSize = 12.sp, color = TextGray)
         }
-        Slider(
-            value = rating.toFloat(),
-            onValueChange = { onRatingChange((it * 2).toInt() / 2.0) },
-            valueRange = 0f..10f,
-            steps = 19,
-            modifier = Modifier.padding(horizontal = 4.dp)
-        )
-        Text("${rating}/10", fontSize = 12.sp, color = TextGray)
+        Text("Half stars supported in final build", fontSize = 11.sp, color = TextGray)
     }
 }
 
@@ -901,7 +882,7 @@ fun MenuItemCard(item: MenuItem, onOpen: () -> Unit, onFavorite: () -> Unit) {
                 Column(horizontalAlignment = Alignment.End) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.Star, contentDescription = "Rating", tint = BrandGold, modifier = Modifier.size(16.dp))
-                        Text("${item.rating}/10", fontSize = 12.sp)
+                        Text("${item.rating}", fontSize = 12.sp)
                     }
                     IconButton(onClick = onOpen) {
                         Icon(Icons.Default.ArrowForward, contentDescription = "Open", tint = BrandGreen)
@@ -942,12 +923,12 @@ private val sampleRestaurants = listOf(
         location = "San Francisco, CA",
         review = "Restaurant review from user limited to two lines of their review...",
         longReview = "Restaurant description from user Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vivamus ultricies elit eget imperdiet consectetur. Nam blandit mi eget orci tempus vehicula.\n\nLorem ipsum dolor sit amet, consectetur adipiscing elit. Suspendisse et vestibulum purus. Fusce euismod metus tortor, in pellentesque quam consequat in.",
-        rating = 9.0,
+        rating = 4.5,
         price = "$$",
         menuItems = listOf(
-            MenuItem(1, "Whopper", "Restaurant review from user limited to two lines of their review...", 9.0, true),
-            MenuItem(2, "French Fries", "Restaurant review from user limited to two lines of their review...", 8.5, false),
-            MenuItem(3, "Chicken Sandwich", "Restaurant review from user limited to two lines of their review...", 8.0, false)
+            MenuItem(1, "Whopper", "Restaurant review from user limited to two lines of their review...", 4.5, true),
+            MenuItem(2, "French Fries", "Restaurant review from user limited to two lines of their review...", 4.5, false),
+            MenuItem(3, "Chicken Sandwich", "Restaurant review from user limited to two lines of their review...", 4.0, false)
         ),
         isFavorite = true
     ),
@@ -957,10 +938,10 @@ private val sampleRestaurants = listOf(
         location = "San Francisco, CA",
         review = "Restaurant review from user limited to two lines of their review...",
         longReview = "Restaurant description from user Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
-        rating = 9.0,
+        rating = 4.5,
         price = "$",
         menuItems = listOf(
-            MenuItem(4, "Big Mac", "Restaurant review from user limited to two lines of their review...", 8.0, false)
+            MenuItem(4, "Big Mac", "Restaurant review from user limited to two lines of their review...", 4.0, false)
         ),
         isFavorite = false
     ),
@@ -970,10 +951,10 @@ private val sampleRestaurants = listOf(
         location = "San Francisco, CA",
         review = "Restaurant review from user limited to two lines of their review...",
         longReview = "Restaurant description from user Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
-        rating = 8.0,
+        rating = 4.0,
         price = "$$",
         menuItems = listOf(
-            MenuItem(5, "Crunchwrap", "Restaurant review from user limited to two lines of their review...", 7.5, false)
+            MenuItem(5, "Crunchwrap", "Restaurant review from user limited to two lines of their review...", 4.0, false)
         ),
         isFavorite = false
     )
