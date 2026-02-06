@@ -1,8 +1,13 @@
 package com.foodielogs
 
+import android.content.Context
+import android.net.Uri
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -61,6 +66,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -71,6 +77,9 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import org.json.JSONArray
+import org.json.JSONObject
+import java.io.IOException
 import java.util.Locale
 
 class MainActivity : ComponentActivity() {
@@ -118,7 +127,17 @@ fun FoodieLogsApp() {
                 )
             }
             composable("account") {
-                AccountSettingsScreen(onBack = { navController.popBackStack() })
+                AccountSettingsScreen(
+                    restaurants = restaurants,
+                    onRestaurantsImported = { imported ->
+                        restaurants.clear()
+                        restaurants.addAll(imported)
+                        val fallback = restaurants.firstOrNull() ?: sampleRestaurants.first()
+                        selectedRestaurant.value = fallback
+                        selectedMenuItem.value = fallback.menuItems.first()
+                    },
+                    onBack = { navController.popBackStack() }
+                )
             }
             composable("add_restaurant") {
                 AddRestaurantScreen(
@@ -486,7 +505,37 @@ fun RestaurantCard(restaurant: Restaurant, onOpen: () -> Unit, onFavorite: () ->
 }
 
 @Composable
-fun AccountSettingsScreen(onBack: () -> Unit) {
+fun AccountSettingsScreen(
+    restaurants: List<Restaurant>,
+    onRestaurantsImported: (List<Restaurant>) -> Unit,
+    onBack: () -> Unit
+) {
+    val context = LocalContext.current
+    val importLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            val json = readTextFromUri(context, uri)
+            val imported = json?.let { FoodieDataSerializer.deserializeRestaurants(it) }
+            if (imported.isNullOrEmpty()) {
+                Toast.makeText(context, "No restaurants found in import.", Toast.LENGTH_SHORT).show()
+            } else {
+                onRestaurantsImported(imported)
+                Toast.makeText(context, "Imported ${imported.size} restaurants.", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+    val exportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/json")
+    ) { uri ->
+        if (uri != null) {
+            val payload = FoodieDataSerializer.serializeRestaurants(restaurants)
+            val success = writeTextToUri(context, uri, payload)
+            val message = if (success) "Exported data successfully." else "Export failed."
+            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+        }
+    }
+
     Column(modifier = Modifier.fillMaxSize()) {
         TopBar(title = "Account Settings", onBack = onBack)
         Column(modifier = Modifier.padding(horizontal = 20.dp)) {
@@ -499,7 +548,7 @@ fun AccountSettingsScreen(onBack: () -> Unit) {
             )
             Spacer(modifier = Modifier.height(16.dp))
             Button(
-                onClick = { },
+                onClick = { importLauncher.launch(arrayOf("application/json")) },
                 colors = ButtonDefaults.buttonColors(containerColor = BrandGreen),
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -507,7 +556,7 @@ fun AccountSettingsScreen(onBack: () -> Unit) {
             }
             Spacer(modifier = Modifier.height(12.dp))
             Button(
-                onClick = { },
+                onClick = { exportLauncher.launch("foodie-logs.json") },
                 colors = ButtonDefaults.buttonColors(containerColor = BrandGreen),
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -1117,6 +1166,110 @@ private data class MenuItem(
     val rating: Double,
     val isFavorite: Boolean
 )
+
+private object FoodieDataSerializer {
+    fun serializeRestaurants(restaurants: List<Restaurant>): String {
+        val restaurantsArray = JSONArray()
+        restaurants.forEach { restaurantsArray.put(it.toJson()) }
+        val payload = JSONObject()
+        payload.put("restaurants", restaurantsArray)
+        return payload.toString(2)
+    }
+
+    fun deserializeRestaurants(json: String): List<Restaurant> {
+        val payload = JSONObject(json)
+        val restaurantsArray = payload.optJSONArray("restaurants") ?: JSONArray()
+        val restaurants = mutableListOf<Restaurant>()
+        for (index in 0 until restaurantsArray.length()) {
+            val restaurantJson = restaurantsArray.optJSONObject(index) ?: continue
+            restaurants.add(restaurantJson.toRestaurant())
+        }
+        return restaurants
+    }
+
+    private fun Restaurant.toJson(): JSONObject {
+        val menuItemsArray = JSONArray()
+        menuItems.forEach { item ->
+            val itemJson = JSONObject()
+            itemJson.put("id", item.id)
+            itemJson.put("name", item.name)
+            itemJson.put("review", item.review)
+            itemJson.put("rating", item.rating)
+            itemJson.put("isFavorite", item.isFavorite)
+            menuItemsArray.put(itemJson)
+        }
+        val featuresArray = JSONArray()
+        features.forEach { feature -> featuresArray.put(feature) }
+        return JSONObject()
+            .put("id", id)
+            .put("name", name)
+            .put("location", location)
+            .put("review", review)
+            .put("longReview", longReview)
+            .put("rating", rating)
+            .put("price", price)
+            .put("category", category)
+            .put("features", featuresArray)
+            .put("menuItems", menuItemsArray)
+            .put("isFavorite", isFavorite)
+    }
+
+    private fun JSONObject.toRestaurant(): Restaurant {
+        val featuresArray = optJSONArray("features") ?: JSONArray()
+        val features = buildList {
+            for (index in 0 until featuresArray.length()) {
+                add(featuresArray.optString(index))
+            }
+        }
+        val menuItemsArray = optJSONArray("menuItems") ?: JSONArray()
+        val menuItems = buildList {
+            for (index in 0 until menuItemsArray.length()) {
+                val itemJson = menuItemsArray.optJSONObject(index) ?: continue
+                add(
+                    MenuItem(
+                        id = itemJson.optInt("id"),
+                        name = itemJson.optString("name"),
+                        review = itemJson.optString("review"),
+                        rating = itemJson.optDouble("rating"),
+                        isFavorite = itemJson.optBoolean("isFavorite")
+                    )
+                )
+            }
+        }
+        return Restaurant(
+            id = optInt("id"),
+            name = optString("name"),
+            location = optString("location"),
+            review = optString("review"),
+            longReview = optString("longReview"),
+            rating = optDouble("rating"),
+            price = optString("price"),
+            category = optString("category"),
+            features = features,
+            menuItems = menuItems,
+            isFavorite = optBoolean("isFavorite")
+        )
+    }
+}
+
+private fun readTextFromUri(context: Context, uri: Uri): String? {
+    return try {
+        context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
+    } catch (exception: IOException) {
+        null
+    }
+}
+
+private fun writeTextToUri(context: Context, uri: Uri, contents: String): Boolean {
+    return try {
+        context.contentResolver.openOutputStream(uri)?.bufferedWriter()?.use { writer ->
+            writer.write(contents)
+        }
+        true
+    } catch (exception: IOException) {
+        false
+    }
+}
 
 private val sampleFeatures = listOf("Bar", "Delivery", "Dine In", "Outdoor", "Take Out", "Brunch")
 private val sampleCategories = listOf("American", "Italian", "Mexican", "Asian", "Seafood", "Cafe")
