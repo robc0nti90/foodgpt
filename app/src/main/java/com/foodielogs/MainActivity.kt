@@ -552,12 +552,44 @@ fun RestaurantMainScreen(
     onFavoriteMenuItem: (MenuItem) -> Unit,
     onOpenMenuItem: (MenuItem) -> Unit
 ) {
+    data class SortOption(
+        val label: String,
+        val sortLabel: String,
+        val comparator: Comparator<MenuItem>
+    )
+
     var query by remember { mutableStateOf("") }
     var sortExpanded by remember { mutableStateOf(false) }
-
-    val sortedItems = restaurant.menuItems.sortedWith(
-        compareByDescending<MenuItem> { it.isFavorite }.thenByDescending { it.rating }
+    val sortOptions = listOf(
+        SortOption(
+            label = "Favorites (default)",
+            sortLabel = "FAVORITES",
+            comparator = compareByDescending<MenuItem> { it.isFavorite }.thenByDescending { it.rating }
+        ),
+        SortOption(
+            label = "Rating high to low",
+            sortLabel = "RATING HIGH TO LOW",
+            comparator = compareByDescending<MenuItem> { it.rating }
+        ),
+        SortOption(
+            label = "Rating low to high",
+            sortLabel = "RATING LOW TO HIGH",
+            comparator = compareBy<MenuItem> { it.rating }
+        ),
+        SortOption(
+            label = "Alphabetical A-Z",
+            sortLabel = "A-Z",
+            comparator = compareBy<MenuItem> { it.name.lowercase() }
+        ),
+        SortOption(
+            label = "Alphabetical Z-A",
+            sortLabel = "Z-A",
+            comparator = compareByDescending<MenuItem> { it.name.lowercase() }
+        )
     )
+    var selectedSortOption by remember { mutableStateOf(sortOptions.first()) }
+
+    val sortedItems = restaurant.menuItems.sortedWith(selectedSortOption.comparator)
 
     Column(modifier = Modifier.fillMaxSize()) {
         TopBar(
@@ -595,7 +627,11 @@ fun RestaurantMainScreen(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {
-            Text("SORT BY FAVORITES", color = BrandGreen, fontWeight = FontWeight.SemiBold)
+            Text(
+                "SORT BY ${selectedSortOption.sortLabel}",
+                color = BrandGreen,
+                fontWeight = FontWeight.SemiBold
+            )
             Icon(
                 if (sortExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
                 contentDescription = "Toggle sort",
@@ -604,14 +640,20 @@ fun RestaurantMainScreen(
         }
         if (sortExpanded) {
             Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) {
-                listOf(
-                    "Favorites (default)",
-                    "Rating high to low",
-                    "Rating low to high",
-                    "Alphabetical A-Z",
-                    "Alphabetical Z-A"
-                ).forEach { option ->
-                    Text(option, fontSize = 12.sp, color = TextGray, modifier = Modifier.padding(vertical = 2.dp))
+                sortOptions.forEach { option ->
+                    val isSelected = option == selectedSortOption
+                    Text(
+                        option.label,
+                        fontSize = 12.sp,
+                        color = if (isSelected) BrandGreen else TextGray,
+                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                        modifier = Modifier
+                            .padding(vertical = 2.dp)
+                            .clickable {
+                                selectedSortOption = option
+                                sortExpanded = false
+                            }
+                    )
                 }
             }
         }
