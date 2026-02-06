@@ -189,7 +189,25 @@ fun FoodieLogsApp() {
                 EditRestaurantScreen(
                     restaurant = selectedRestaurant.value,
                     onBack = { navController.popBackStack() },
-                    onSubmit = { navController.popBackStack() }
+                    onSubmit = { name, location, review, rating, price, features, categories ->
+                        val currentRestaurant = selectedRestaurant.value
+                        val updatedRestaurant = currentRestaurant.copy(
+                            name = name,
+                            location = location,
+                            review = review,
+                            longReview = review,
+                            rating = rating,
+                            price = price,
+                            category = categories.firstOrNull().orEmpty(),
+                            features = features
+                        )
+                        selectedRestaurant.value = updatedRestaurant
+                        val index = restaurants.indexOfFirst { it.id == currentRestaurant.id }
+                        if (index >= 0) {
+                            restaurants[index] = updatedRestaurant
+                        }
+                        navController.popBackStack()
+                    }
                 )
             }
             composable("add_menu_item") {
@@ -734,12 +752,27 @@ fun RestaurantAboutScreen(restaurant: Restaurant, onBack: () -> Unit, onEdit: ()
 }
 
 @Composable
-fun EditRestaurantScreen(restaurant: Restaurant, onBack: () -> Unit, onSubmit: () -> Unit) {
+fun EditRestaurantScreen(
+    restaurant: Restaurant,
+    onBack: () -> Unit,
+    onSubmit: (String, String, String, Double, String, List<String>, List<String>) -> Unit
+) {
     var name by remember { mutableStateOf(restaurant.name) }
     var location by remember { mutableStateOf(restaurant.location) }
     var review by remember { mutableStateOf(restaurant.review) }
     var rating by remember { mutableStateOf(restaurant.rating) }
-    val hasChanges = name != restaurant.name || location != restaurant.location || review != restaurant.review || rating != restaurant.rating
+    var price by remember { mutableStateOf(restaurant.price) }
+    val selectedFeatures = remember { mutableStateListOf<String>().apply { addAll(restaurant.features) } }
+    val selectedCategories =
+        remember { mutableStateListOf<String>().apply { addAll(listOf(restaurant.category).filter { it.isNotBlank() }) } }
+    val originalCategories = remember(restaurant.category) { listOf(restaurant.category).filter { it.isNotBlank() }.toSet() }
+    val hasChanges = name != restaurant.name ||
+        location != restaurant.location ||
+        review != restaurant.review ||
+        rating != restaurant.rating ||
+        price != restaurant.price ||
+        selectedFeatures.toSet() != restaurant.features.toSet() ||
+        selectedCategories.toSet() != originalCategories
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
@@ -754,8 +787,32 @@ fun EditRestaurantScreen(restaurant: Restaurant, onBack: () -> Unit, onSubmit: (
             FormField(label = "LOCATION*", value = location, onValueChange = { location = it })
             FormField(label = "REVIEW AND NOTES", value = review, onValueChange = { review = it })
             RatingPicker(label = "RATING*", rating = rating, onRatingChange = { rating = it })
+            PriceSelector(price = price, onSelect = { price = it })
+            MultiSelectChips(
+                label = "FEATURES:",
+                options = sampleFeatures,
+                selected = selectedFeatures
+            )
+            MultiSelectChips(
+                label = "CATEGORIES:",
+                options = sampleCategories,
+                selected = selectedCategories
+            )
         }
-        SubmitBar(enabled = hasChanges, onSubmit = onSubmit)
+        SubmitBar(
+            enabled = hasChanges,
+            onSubmit = {
+                onSubmit(
+                    name.trim(),
+                    location.trim(),
+                    review.trim(),
+                    rating,
+                    price,
+                    selectedFeatures.toList(),
+                    selectedCategories.toList()
+                )
+            }
+        )
     }
 }
 
