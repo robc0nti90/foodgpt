@@ -120,7 +120,23 @@ fun FoodieLogsApp() {
             composable("add_restaurant") {
                 AddRestaurantScreen(
                     onBack = { navController.popBackStack() },
-                    onSubmit = { navController.popBackStack() }
+                    onSubmit = { name, location, review, rating, price ->
+                        val nextId = (restaurants.maxOfOrNull { it.id } ?: 0) + 1
+                        restaurants.add(
+                            Restaurant(
+                                id = nextId,
+                                name = name,
+                                location = location,
+                                review = review,
+                                longReview = review,
+                                rating = rating,
+                                price = price,
+                                menuItems = emptyList(),
+                                isFavorite = false
+                            )
+                        )
+                        navController.popBackStack()
+                    }
                 )
             }
             composable("restaurant_main") {
@@ -174,7 +190,26 @@ fun FoodieLogsApp() {
             composable("add_menu_item") {
                 AddMenuItemScreen(
                     onBack = { navController.popBackStack() },
-                    onSubmit = { navController.popBackStack() }
+                    onSubmit = { name, review, rating ->
+                        val currentRestaurant = selectedRestaurant.value
+                        val nextId = (currentRestaurant.menuItems.maxOfOrNull { it.id } ?: 0) + 1
+                        val newItem = MenuItem(
+                            id = nextId,
+                            name = name,
+                            review = review,
+                            rating = rating,
+                            isFavorite = false
+                        )
+                        val updatedRestaurant = currentRestaurant.copy(
+                            menuItems = currentRestaurant.menuItems + newItem
+                        )
+                        selectedRestaurant.value = updatedRestaurant
+                        val index = restaurants.indexOfFirst { it.id == currentRestaurant.id }
+                        if (index >= 0) {
+                            restaurants[index] = updatedRestaurant
+                        }
+                        navController.popBackStack()
+                    }
                 )
             }
             composable("menu_item_about") {
@@ -412,7 +447,10 @@ fun AccountSettingsScreen(onBack: () -> Unit) {
 }
 
 @Composable
-fun AddRestaurantScreen(onBack: () -> Unit, onSubmit: () -> Unit) {
+fun AddRestaurantScreen(
+    onBack: () -> Unit,
+    onSubmit: (String, String, String, Double, String) -> Unit
+) {
     var name by remember { mutableStateOf("") }
     var location by remember { mutableStateOf("") }
     var review by remember { mutableStateOf("") }
@@ -447,7 +485,10 @@ fun AddRestaurantScreen(onBack: () -> Unit, onSubmit: () -> Unit) {
                 selected = selectedCategories
             )
         }
-        SubmitBar(enabled = requiredFilled, onSubmit = onSubmit)
+        SubmitBar(
+            enabled = requiredFilled,
+            onSubmit = { onSubmit(name.trim(), location.trim(), review.trim(), rating, price) }
+        )
     }
 }
 
@@ -624,7 +665,7 @@ fun EditRestaurantScreen(restaurant: Restaurant, onBack: () -> Unit, onSubmit: (
 }
 
 @Composable
-fun AddMenuItemScreen(onBack: () -> Unit, onSubmit: () -> Unit) {
+fun AddMenuItemScreen(onBack: () -> Unit, onSubmit: (String, String, Double) -> Unit) {
     var name by remember { mutableStateOf("") }
     var review by remember { mutableStateOf("") }
     var rating by remember { mutableStateOf(0.0) }
@@ -643,7 +684,10 @@ fun AddMenuItemScreen(onBack: () -> Unit, onSubmit: () -> Unit) {
             RatingPicker(label = "RATING*", rating = rating, onRatingChange = { rating = it })
             FormField(label = "REVIEW AND NOTES", value = review, onValueChange = { review = it })
         }
-        SubmitBar(enabled = requiredFilled, onSubmit = onSubmit)
+        SubmitBar(
+            enabled = requiredFilled,
+            onSubmit = { onSubmit(name.trim(), review.trim(), rating) }
+        )
     }
 }
 
