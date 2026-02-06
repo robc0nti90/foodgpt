@@ -35,7 +35,9 @@ import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.StarHalf
 import androidx.compose.material.icons.outlined.FavoriteBorder
+import androidx.compose.material.icons.outlined.StarHalf
 import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -69,6 +71,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import java.util.Locale
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -871,19 +874,26 @@ fun RatingPicker(label: String, rating: Double, onRatingChange: (Double) -> Unit
     Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) {
         Text(label, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
         Row(verticalAlignment = Alignment.CenterVertically) {
-            for (i in 1..5) {
-                val isFilled = rating >= i * 2
-                IconButton(onClick = { onRatingChange(i * 2.0) }) {
+            for (step in 1..10) {
+                val value = step * 0.5
+                val isFilled = rating >= value
+                val icon = when {
+                    step % 2 == 0 && isFilled -> Icons.Default.Star
+                    step % 2 == 0 -> Icons.Outlined.StarBorder
+                    isFilled -> Icons.Default.StarHalf
+                    else -> Icons.Outlined.StarHalf
+                }
+                IconButton(onClick = { onRatingChange(value) }) {
                     Icon(
-                        if (isFilled) Icons.Default.Star else Icons.Outlined.StarBorder,
-                        contentDescription = "Star",
+                        icon,
+                        contentDescription = "Star $value",
                         tint = BrandGold
                     )
                 }
             }
-            Text("/10", fontSize = 12.sp, color = TextGray)
+            Text(String.format(Locale.US, "%.1f / 5", rating), fontSize = 12.sp, color = TextGray)
         }
-        Text("Half stars supported in final build", fontSize = 11.sp, color = TextGray)
+        Text("Tap a half-step to rate in 0.5 increments.", fontSize = 11.sp, color = TextGray)
     }
 }
 
