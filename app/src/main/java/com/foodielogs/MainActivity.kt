@@ -40,9 +40,9 @@ import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.StarHalf
+import androidx.compose.material.icons.filled.StarHalf as FilledStarHalf
 import androidx.compose.material.icons.outlined.FavoriteBorder
-import androidx.compose.material.icons.outlined.StarHalf
+import androidx.compose.material.icons.outlined.StarHalf as OutlinedStarHalf
 import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -986,8 +986,8 @@ fun RatingPicker(label: String, rating: Double, onRatingChange: (Double) -> Unit
                 val icon = when {
                     step % 2 == 0 && isFilled -> Icons.Default.Star
                     step % 2 == 0 -> Icons.Outlined.StarBorder
-                    isFilled -> Icons.Default.StarHalf
-                    else -> Icons.Outlined.StarHalf
+                    isFilled -> FilledStarHalf
+                    else -> OutlinedStarHalf
                 }
                 IconButton(onClick = { onRatingChange(value) }) {
                     Icon(
